@@ -1,0 +1,608 @@
+{
+  "_comment": "The foundation's self-declaration of its features and the pipeline seams each contributes. The discovery-worker pipeline reads this at clone time (FoundationManifest.load) and projects every 'what to skip / never strip / how to gate / which paths are fenced' set from it — so ONBOARDING A NEW FOUNDATION FEATURE IS AN EDIT HERE (plus its FOUNDATION_CONTRACT.md shapes), never a pipeline code change. Keep this in sync with the code you ship: add a feature = add an entry; change a fenced module's public surface = update the matching entry AND the contract card in the same commit. Unknown fields are ignored; a missing/malformed file makes the pipeline fall back to its built-in default.",
+  "features": [
+    {
+      "id": "auth",
+      "core": true,
+      "requires": ["email"],
+      "backend": {
+        "controllers": ["AuthController.java", "admin/AdminUserController.java"],
+        "packages": ["security", "config/SecurityConfig"],
+        "fenced": [
+          "User", "Role", "UserRepository", "UserService", "UserDetailsServiceImpl",
+          "JwtUtil", "JwtService", "JwtTokenProvider", "JwtAuthFilter",
+          "SecurityConfig", "SecurityConfiguration", "PasswordEncoderConfig", "PasswordEncoder",
+          "AuthController", "AdminInitializer",
+          "AuthRequest", "AuthResponse", "RegisterRequest",
+          "OtpService", "PasswordPolicy", "LoginResponse", "VerifyTwoFactorRequest",
+          "ChangePasswordRequest", "ForgotPasswordRequest", "ResetPasswordRequest",
+          "AdminUserController", "UserAdminService", "UserDto", "UpdateUserRoleRequest"
+        ]
+      },
+      "frontend": {
+        "modules": ["/context/authcontext", "/hooks/useauth", "/services/authservice", "/types/auth.", "/services/userservice", "/types/user"],
+        "guards": ["ProtectedRoute", "AdminLayout"],
+        "fenced": ["AuthContext", "useAuth", "authService", "userService"],
+        "pages": [
+          { "key": "ACCOUNT", "gate": "AUTH", "nav": true },
+          { "key": "FORGOT_PASSWORD", "gate": "PUBLIC", "nav": false },
+          { "key": "RESET_PASSWORD", "gate": "PUBLIC", "nav": false },
+          { "key": "ADMIN_USERS", "gate": "ADMIN", "nav": true }
+        ]
+      },
+      "config": {
+        "env": ["JWT_SECRET", "JWT_CHALLENGE_EXPIRATION_MS", "OTP_TTL_MINUTES", "APP_BASE_URL", "APP_CORS_ALLOWED_ORIGINS", "SPRING_PROFILES_ACTIVE", "ADMIN_ALLOW_INSECURE_DEFAULT", "LOGIN_MAX_ATTEMPTS", "LOGIN_LOCKOUT_MINUTES"],
+        "compose": []
+      }
+    },
+    {
+      "id": "shell",
+      "core": true,
+      "requires": [],
+      "backend": {
+        "controllers": ["SpaController.java"],
+        "packages": [],
+        "fenced": ["SpaController"]
+      },
+      "frontend": {
+        "modules": ["/shell/"],
+        "guards": ["siteConfig"],
+        "fenced": ["Header", "Footer", "Layout", "SiteHeader", "SiteFooter", "SiteLayout"],
+        "pages": []
+      },
+      "config": {
+        "env": [],
+        "compose": []
+      }
+    },
+    {
+      "id": "exceptions",
+      "core": true,
+      "requires": [],
+      "backend": {
+        "controllers": [],
+        "packages": ["exception"],
+        "fenced": ["ResourceNotFoundException", "PaymentGatewayException", "GlobalExceptionHandler"]
+      },
+      "frontend": {
+        "modules": [],
+        "guards": [],
+        "fenced": [],
+        "pages": []
+      },
+      "config": {
+        "env": [],
+        "compose": []
+      }
+    },
+    {
+      "id": "email",
+      "core": true,
+      "requires": [],
+      "backend": {
+        "controllers": [],
+        "packages": ["notification"],
+        "fenced": ["EmailService", "AsyncConfig", "EmailNotificationListener"]
+      },
+      "frontend": {
+        "modules": [],
+        "guards": [],
+        "fenced": [],
+        "pages": []
+      },
+      "config": {
+        "env": ["SMTP_HOST", "SMTP_PORT", "SMTP_USERNAME", "SMTP_PASSWORD", "SMTP_AUTH", "SMTP_STARTTLS", "MAIL_FROM"],
+        "compose": ["mailpit"]
+      }
+    },
+    {
+      "id": "payment",
+      "core": false,
+      "requires": ["auth"],
+      "backend": {
+        "controllers": ["PaymentController.java"],
+        "packages": ["gateway", "event"],
+        "fenced": [
+          "Payment", "PaymentStatus", "PaymentRepository", "PaymentService",
+          "PaymentController", "PaymentGateway", "RazorpayPaymentGateway", "DemoPaymentGateway",
+          "PaymentGatewayConfig", "RazorpayConfiguration", "GatewayWebhookEvent",
+          "PaymentCapturedEvent", "PaymentGatewayException",
+          "CreatePaymentRequest", "PaymentOrderResponse", "VerifyPaymentRequest",
+          "PaymentVerificationResponse"
+        ]
+      },
+      "frontend": {
+        "modules": [],
+        "guards": [],
+        "fenced": [],
+        "pages": [{ "key": "CHECKOUT", "gate": "AUTH", "nav": false }]
+      },
+      "config": {
+        "env": ["RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET", "RAZORPAY_WEBHOOK_SECRET", "RAZORPAY_WEBHOOK_ALLOW_UNSIGNED"],
+        "compose": []
+      }
+    },
+    {
+      "id": "cart",
+      "core": false,
+      "requires": [],
+      "backend": {
+        "controllers": [],
+        "packages": [],
+        "fenced": []
+      },
+      "frontend": {
+        "modules": ["/src/cart/", "/context/cartcontext", "/context/checkoutcontext"],
+        "guards": [],
+        "fenced": ["CartContext", "CheckoutContext", "useCheckout"],
+        "pages": [{ "key": "CART", "gate": "PUBLIC", "nav": false }]
+      },
+      "config": {
+        "env": [],
+        "compose": []
+      }
+    },
+    {
+      "id": "gallery",
+      "core": false,
+      "requires": ["auth"],
+      "backend": {
+        "controllers": ["GalleryController.java", "MediaController.java", "AdminMediaController.java"],
+        "packages": ["storage"],
+        "fenced": []
+      },
+      "frontend": {
+        "modules": ["/components/gallery/", "/hooks/usemedia", "/components/admin/multiimagepicker", "/components/admin/imagepicker"],
+        "guards": [],
+        "fenced": ["MultiImagePicker", "ImagePicker"],
+        "pages": [{ "key": "GALLERY", "gate": "PUBLIC", "nav": true }]
+      },
+      "config": {
+        "env": ["S3_ENDPOINT", "S3_BUCKET", "S3_PATH_STYLE"],
+        "compose": ["minio"]
+      }
+    },
+    {
+      "id": "support",
+      "core": false,
+      "requires": ["auth", "email"],
+      "backend": {
+        "controllers": ["SupportController.java", "admin/AdminSupportController.java"],
+        "packages": [],
+        "fenced": [
+          "SupportCase", "SupportMessage", "SupportStatus", "SupportAuthor",
+          "SupportService", "SupportCaseRepository", "SupportMessageRepository",
+          "SupportRepliedEvent", "SupportCustomerMessageEvent",
+          "SupportController", "AdminSupportController",
+          "SupportCaseDto", "SupportThreadDto", "SupportMessageDto",
+          "CreateSupportCaseRequest", "PostMessageRequest", "AdminReplyRequest"
+        ]
+      },
+      "frontend": {
+        "modules": ["/services/supportservice", "/hooks/supporthooks", "/types/support"],
+        "guards": [],
+        "fenced": ["supportService"],
+        "pages": [
+          { "key": "SUPPORT", "gate": "AUTH", "nav": true },
+          { "key": "ADMIN_SUPPORT", "gate": "ADMIN", "nav": true }
+        ]
+      },
+      "config": {
+        "env": [],
+        "compose": []
+      }
+    },
+    {
+      "id": "bulk-upload",
+      "core": false,
+      "requires": ["auth"],
+      "backend": {
+        "controllers": [],
+        "packages": [],
+        "fenced": ["SpreadsheetParser", "BulkUploadResult"]
+      },
+      "frontend": {
+        "modules": ["/components/admin/bulkuploaddialog", "/types/bulkupload"],
+        "guards": [],
+        "fenced": ["BulkUploadDialog"],
+        "pages": []
+      },
+      "config": {
+        "env": [],
+        "compose": []
+      }
+    },
+    {
+      "id": "admin-grid",
+      "core": false,
+      "requires": ["auth"],
+      "backend": {
+        "controllers": [],
+        "packages": [],
+        "fenced": []
+      },
+      "frontend": {
+        "modules": [
+          "/components/admin/admindatagrid", "/components/admin/rowactionscell",
+          "/components/admin/stepper", "/components/admin/steppersheet"
+        ],
+        "guards": [],
+        "fenced": ["AdminDataGrid", "RowActionsCell", "Stepper", "StepperSheet"],
+        "pages": []
+      },
+      "config": {
+        "env": [],
+        "compose": []
+      }
+    },
+    {
+      "id": "audit",
+      "core": true,
+      "requires": ["auth"],
+      "backend": {
+        "controllers": ["admin/AdminAuditController.java"],
+        "packages": ["audit"],
+        "fenced": [
+          "AuditEvent", "AuditEventRepository", "AuditService", "AuditActions",
+          "AuditLogFilter", "AuditEventDto", "AdminAuditController"
+        ]
+      },
+      "frontend": {
+        "modules": ["/services/auditservice", "/types/audit"],
+        "guards": [],
+        "fenced": ["auditService"],
+        "pages": [{ "key": "ADMIN_LOGS", "gate": "ADMIN", "nav": true }]
+      },
+      "config": {
+        "env": [],
+        "compose": []
+      }
+    },
+    {
+      "id": "toasts",
+      "core": true,
+      "requires": [],
+      "backend": {
+        "controllers": [],
+        "packages": [],
+        "fenced": []
+      },
+      "frontend": {
+        "modules": ["/lib/apitoast"],
+        "guards": [],
+        "fenced": ["withToast"],
+        "pages": []
+      },
+      "config": {
+        "env": [],
+        "compose": []
+      }
+    },
+    {
+      "id": "theme",
+      "core": true,
+      "requires": [],
+      "backend": {
+        "controllers": [],
+        "packages": [],
+        "fenced": []
+      },
+      "frontend": {
+        "modules": ["/components/theme/"],
+        "guards": [],
+        "fenced": ["ThemeProvider", "ThemeToggle", "useTheme"],
+        "pages": []
+      },
+      "config": {
+        "env": [],
+        "compose": []
+      }
+    },
+    {
+      "id": "catalog",
+      "core": false,
+      "requires": ["auth"],
+      "backend": {
+        "controllers": ["ProductController.java", "RecommendationController.java", "admin/AdminProductController.java", "admin/AdminRecommendationController.java"],
+        "packages": ["catalog"],
+        "fenced": [
+          "CatalogItemDto", "CatalogItemResolver", "CatalogService", "ProductCatalogResolver", "CatalogConstants",
+          "Product", "ProductVariant", "ProductDto", "ProductVariantDto", "UpsertProductRequest", "BranchScope",
+          "ProductRepository", "ProductVariantRepository", "ProductService",
+          "CatalogRecommendation", "RecommendationType", "RecommendationDto", "UpsertRecommendationRequest",
+          "CatalogRecommendationRepository", "RecommendationService",
+          "ProductController", "AdminProductController", "RecommendationController", "AdminRecommendationController"
+        ]
+      },
+      "frontend": {
+        "modules": ["/types/catalog", "/types/product", "/types/recommendation", "/services/productservice", "/services/recommendationservice", "/hooks/producthooks", "/hooks/recommendationhooks", "/components/recommendations/"],
+        "guards": [],
+        "fenced": ["productService", "recommendationService", "RecommendationWidget"],
+        "pages": [
+          { "key": "PRODUCTS", "gate": "PUBLIC", "nav": true },
+          { "key": "PRODUCT_DETAIL", "gate": "PUBLIC", "nav": false },
+          { "key": "ADMIN_PRODUCTS", "gate": "ADMIN", "nav": true },
+          { "key": "ADMIN_RECOMMENDATIONS", "gate": "ADMIN", "nav": true }
+        ]
+      },
+      "config": { "env": [], "compose": [] }
+    },
+    {
+      "id": "inventory",
+      "core": false,
+      "requires": ["catalog"],
+      "backend": {
+        "controllers": [],
+        "packages": ["inventory"],
+        "fenced": ["InventoryProvider", "InventoryService", "ProductInventoryProvider", "BranchStock", "BranchStockRepository"]
+      },
+      "frontend": { "modules": [], "guards": [], "fenced": [], "pages": [] },
+      "config": { "env": [], "compose": [] }
+    },
+    {
+      "id": "events",
+      "core": false,
+      "requires": ["catalog", "inventory", "orders"],
+      "backend": {
+        "controllers": ["EventController.java", "admin/AdminEventController.java"],
+        "packages": [],
+        "fenced": [
+          "Event", "EventTier", "EventDto", "EventTierDto", "UpsertEventRequest",
+          "EventRepository", "EventTierRepository", "EventService",
+          "EventCatalogResolver", "EventInventoryProvider",
+          "EventController", "AdminEventController"
+        ]
+      },
+      "frontend": {
+        "modules": ["/types/event", "/services/eventservice", "/hooks/eventhooks"],
+        "guards": [],
+        "fenced": ["eventService"],
+        "pages": [
+          { "key": "EVENTS", "gate": "PUBLIC", "nav": true },
+          { "key": "EVENT_DETAIL", "gate": "PUBLIC", "nav": false },
+          { "key": "ADMIN_EVENTS", "gate": "ADMIN", "nav": true }
+        ]
+      },
+      "config": { "env": [], "compose": [] }
+    },
+    {
+      "id": "workflow-connectors",
+      "core": false,
+      "requires": ["email"],
+      "backend": {
+        "controllers": ["ConnectorWebhookController.java", "admin/AdminWorkflowController.java", "admin/AdminConnectorController.java"],
+        "packages": ["workflow", "connector"],
+        "fenced": [
+          "Workflow", "WorkflowStage", "WorkflowBinding", "WorkflowExecution", "RefundPolicy", "ExecutionStatus", "TriggerType",
+          "WorkflowRepository", "WorkflowStageRepository", "WorkflowBindingRepository", "WorkflowExecutionRepository",
+          "WorkflowEngine", "StageActionDispatcher", "WorkflowService", "OrderStageEnteredEvent",
+          "OrderConnector", "ActionConnector", "QuoteConnector", "WebhookConnector", "ConnectorRegistry",
+          "ConnectorCategory", "ConnectorAction", "ConnectorResult", "OrderStageContext", "CheckoutContext", "QuoteOption", "OrderItemSnapshot",
+          "ConnectorConfig", "ConnectorConfigRepository", "ConnectorConfigService", "ConnectorAdminService",
+          "EmailConnector", "DemoDeliveryConnector", "DemoRefundConnector",
+          "WorkflowDto", "ConnectorDto", "ConnectorUpdateRequest",
+          "ConnectorWebhookController", "AdminWorkflowController", "AdminConnectorController"
+        ]
+      },
+      "frontend": {
+        "modules": ["/services/workflowservice", "/hooks/workflowhooks", "/components/admin/workflowdiagram"],
+        "guards": [],
+        "fenced": ["workflowService", "connectorService", "WorkflowDiagram"],
+        "pages": [
+          { "key": "ADMIN_WORKFLOW", "gate": "ADMIN", "nav": true },
+          { "key": "ADMIN_CONNECTORS", "gate": "ADMIN", "nav": true }
+        ]
+      },
+      "config": { "env": [], "compose": [] }
+    },
+    {
+      "id": "orders",
+      "core": false,
+      "requires": ["catalog", "inventory", "payment", "workflow-connectors", "cart"],
+      "backend": {
+        "controllers": ["OrderController.java", "CheckoutController.java", "admin/AdminOrderController.java"],
+        "packages": [],
+        "fenced": [
+          "Order", "OrderItem", "OrderAdjustment", "Address", "FulfillmentType", "PaymentMode", "PaymentState",
+          "OrderRepository", "OrderService",
+          "PlaceOrderRequest", "CartLineInput", "QuoteRequest", "QuoteResponse", "OrderDto", "CancelOrderRequest", "AdvanceStageRequest",
+          "OrderController", "CheckoutController", "AdminOrderController"
+        ]
+      },
+      "frontend": {
+        "modules": ["/types/order", "/services/orderservice", "/hooks/orderhooks", "/connectors/registry", "/lib/razorpay"],
+        "guards": [],
+        "fenced": ["orderService", "registerCheckoutConnector"],
+        "pages": [
+          { "key": "ORDERS", "gate": "AUTH", "nav": true },
+          { "key": "ORDER_DETAIL", "gate": "AUTH", "nav": false },
+          { "key": "ADMIN_ORDERS", "gate": "ADMIN", "nav": true }
+        ]
+      },
+      "config": { "env": [], "compose": [] }
+    },
+    {
+      "id": "branches",
+      "core": false,
+      "requires": [],
+      "backend": {
+        "controllers": ["BranchController.java", "admin/AdminBranchController.java"],
+        "packages": [],
+        "fenced": ["Branch", "BranchRepository", "BranchService", "BranchDto", "UpsertBranchRequest", "BranchController", "AdminBranchController"]
+      },
+      "frontend": {
+        "modules": ["/types/branch", "/services/branchservice", "/hooks/branchhooks", "/context/branchcontext", "/components/branchpicker"],
+        "guards": ["BranchProvider"],
+        "fenced": ["branchService", "BranchContext", "useBranch", "BranchPicker"],
+        "pages": [
+          { "key": "BRANCHES", "gate": "PUBLIC", "nav": true },
+          { "key": "ADMIN_BRANCHES", "gate": "ADMIN", "nav": true }
+        ]
+      },
+      "config": { "env": [], "compose": [] }
+    },
+    {
+      "id": "addresses",
+      "core": false,
+      "requires": ["auth"],
+      "backend": {
+        "controllers": ["AddressController.java"],
+        "packages": [],
+        "fenced": ["UserAddress", "UserAddressRepository", "AddressService", "UserAddressDto", "UpsertAddressRequest", "AddressController"]
+      },
+      "frontend": {
+        "modules": ["/types/address", "/services/addressservice", "/hooks/addresshooks", "/components/addressbook"],
+        "guards": [],
+        "fenced": ["addressService", "AddressBook"],
+        "pages": []
+      },
+      "config": { "env": [], "compose": [] }
+    },
+    {
+      "id": "feedback",
+      "core": false,
+      "requires": ["orders"],
+      "backend": {
+        "controllers": ["admin/AdminFeedbackController.java"],
+        "packages": [],
+        "fenced": ["OrderFeedback", "OrderFeedbackRepository", "FeedbackService", "OrderFeedbackDto", "CreateFeedbackRequest", "AdminFeedbackController"]
+      },
+      "frontend": {
+        "modules": ["/types/feedback", "/services/feedbackservice", "/hooks/feedbackhooks", "/components/feedbackform"],
+        "guards": [],
+        "fenced": ["feedbackService", "FeedbackForm"],
+        "pages": [
+          { "key": "ADMIN_FEEDBACK", "gate": "ADMIN", "nav": true }
+        ]
+      },
+      "config": { "env": [], "compose": [] }
+    },
+    {
+      "id": "reviews",
+      "core": false,
+      "requires": ["catalog", "auth"],
+      "backend": {
+        "controllers": ["ProductReviewController.java", "admin/AdminReviewController.java"],
+        "packages": [],
+        "fenced": [
+          "ProductReview", "ProductReviewRepository", "ProductReviewService",
+          "ProductReviewDto", "ProductReviewSummaryDto", "CreateProductReviewRequest",
+          "ProductReviewController", "AdminReviewController"
+        ]
+      },
+      "frontend": {
+        "modules": ["/types/review", "/services/reviewservice", "/hooks/reviewhooks", "/components/reviews/"],
+        "guards": [],
+        "fenced": ["reviewService", "ProductReviews"],
+        "pages": [
+          { "key": "ADMIN_REVIEWS", "gate": "ADMIN", "nav": true }
+        ]
+      },
+      "config": { "env": [], "compose": [] }
+    },
+    {
+      "id": "order-board",
+      "core": false,
+      "requires": ["orders", "branches"],
+      "backend": {
+        "controllers": ["admin/AdminSprintController.java"],
+        "packages": [],
+        "fenced": [
+          "OrderStageEvent", "OrderStageEventRepository", "BlockReason",
+          "BlockOrderRequest", "AssignOrderRequest", "RefundOrderRequest", "WorkflowStageMappingRequest",
+          "SprintStatus", "OrderSprint", "OrderSprintRepository", "SprintService",
+          "SprintDto", "UpsertSprintRequest", "CompleteSprintRequest", "AdminSprintController",
+          "OrderBoardService", "OrderBoardStream", "OrderBoardChangedEvent",
+          "OrderBoardDto", "OrderCardDto", "OrderBoardDetailDto", "OrderStageEventDto", "OrderArchiveRowDto"
+        ]
+      },
+      "frontend": {
+        "modules": [
+          "/types/sprint", "/services/sprintservice", "/hooks/sprinthooks",
+          "/pages/admin/orderboardpage", "/pages/admin/adminordersarchivepage",
+          "/components/admin/board", "/components/requireboardaccess"
+        ],
+        "guards": ["RequireBoardAccess"],
+        "fenced": [
+          "sprintService", "OrderBoardPage", "AdminOrdersArchivePage", "RequireBoardAccess",
+          "useOrderBoard", "useOrderBoardStream", "useStaffUsers", "useOrderArchive"
+        ],
+        "pages": [
+          { "key": "ADMIN_ORDER_ARCHIVE", "gate": "ADMIN", "nav": false }
+        ]
+      },
+      "config": { "env": [], "compose": [] }
+    },
+    {
+      "id": "loyalty",
+      "core": false,
+      "requires": ["orders", "auth", "catalog"],
+      "backend": {
+        "controllers": ["LoyaltyController.java", "admin/AdminLoyaltyController.java", "admin/AdminOfferController.java"],
+        "packages": [],
+        "fenced": [
+          "Tier", "LoyaltyEventType", "LoyaltyEventStatus", "CoinStatus", "OfferType", "OfferStatus", "OfferTrigger",
+          "LoyaltyProfile", "LoyaltyEvent", "CoinLedgerEntry", "Offer", "Redemption", "DiscountBudget",
+          "LoyaltyTier", "LoyaltyEventRule", "LoyaltyTriggerConfig", "LoyaltySettings",
+          "LoyaltyProfileRepository", "LoyaltyEventRepository", "CoinLedgerEntryRepository", "OfferRepository",
+          "RedemptionRepository", "DiscountBudgetRepository", "LoyaltyTierRepository", "LoyaltyEventRuleRepository",
+          "LoyaltyTriggerConfigRepository", "LoyaltySettingsRepository",
+          "LoyaltySettingsService", "LoyaltyConfigService", "DiscountBudgetService", "LoyaltyProfileService", "OfferAdminService",
+          "LoyaltyEventService", "LoyaltyScoreService", "LoyaltyNightlyJob", "CoinService",
+          "OfferService", "BudgetPacingService", "LoyaltyMetricsService",
+          "LoyaltyEarnConnector", "LoyaltyReversalConnector", "CoinRedemptionConnector", "LoyaltyDiscountConnector", "LoyaltyWorkflowBindingInitializer",
+          "LoyaltySettingsDto", "LoyaltyTierDto", "UpdateLoyaltyTierRequest", "LoyaltyEventRuleDto",
+          "UpdateLoyaltyEventRuleRequest", "LoyaltyTriggerConfigDto", "UpdateLoyaltyTriggerConfigRequest",
+          "DiscountBudgetDto", "UpsertDiscountBudgetRequest", "OfferDto", "CreateOfferRequest", "LoyaltyProfileDto",
+          "LoyaltyMeDto", "RecordActivityRequest", "TrackingConsentRequest", "CoinLedgerDto",
+          "OfferValidationResult", "ValidateOfferRequest", "LoyaltyMetricsDto",
+          "LoyaltyController", "AdminLoyaltyController", "AdminOfferController", "LoyaltySeedInitializer"
+        ]
+      },
+      "frontend": {
+        "modules": [
+          "/types/loyalty", "/services/loyaltyservice", "/hooks/loyaltyhooks",
+          "/pages/admin/loyalty", "/pages/loyaltytermspage", "/components/admin/loyaltyadminlayout", "/components/loyalty"
+        ],
+        "guards": [],
+        "fenced": ["loyaltyService", "LoyaltyAdminLayout", "LoyaltyCard", "LoyaltyTermsPage"],
+        "pages": [
+          { "key": "ADMIN_LOYALTY", "gate": "ADMIN", "nav": true },
+          { "key": "LOYALTY_TERMS", "gate": "PUBLIC", "nav": false }
+        ]
+      },
+      "config": { "env": ["LOYALTY_NIGHTLY_CRON"], "compose": [] }
+    },
+    {
+      "id": "analytics",
+      "core": false,
+      "requires": ["orders"],
+      "backend": {
+        "controllers": ["admin/AdminAnalyticsController.java"],
+        "packages": [],
+        "fenced": [
+          "DailyBusinessLog", "DailyBusinessLogRepository", "AnalyticsOrderRepository",
+          "AnalyticsService", "AnalyticsSummaryDto", "DailyBusinessLogDto", "UpsertDailyBusinessLogRequest",
+          "AdminAnalyticsController"
+        ]
+      },
+      "frontend": {
+        "modules": [
+          "/types/analytics", "/services/analyticsservice", "/hooks/analyticshooks",
+          "/pages/admin/adminanalyticspage", "/components/admin/analytics"
+        ],
+        "guards": [],
+        "fenced": [
+          "analyticsService", "AdminAnalyticsPage", "AnalyticsDashboard", "DailyLogManager"
+        ],
+        "pages": [
+          { "key": "ADMIN_ANALYTICS", "gate": "ADMIN", "nav": true }
+        ]
+      },
+      "config": {
+        "env": ["ANALYTICS_ZONE", "ANALYTICS_FY_START_MONTH", "ANALYTICS_TARGET_GROWTH_PCT", "ANALYTICS_ANNUAL_REVENUE_TARGET"],
+        "compose": []
+      }
+    }
+  ]
+}
