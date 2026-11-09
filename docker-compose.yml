@@ -1,0 +1,56 @@
+version: "3.9"
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    env_file: .env
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      # temurin-jammy has no wget/curl — probe the port with bash's /dev/tcp instead
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/8080'"]
+      interval: 30s
+      retries: 3
+  # Local dev SMTP catcher — sends nowhere real; inspect captured email at http://localhost:8025.
+  # Point .env at it: SMTP_HOST=mailpit, SMTP_PORT=1025, SMTP_AUTH=false, SMTP_STARTTLS=false.
+  mailpit:
+    image: axllent/mailpit
+    ports:
+      - "8025:8025"
+    restart: unless-stopped
+  minio:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-minioadmin}
+    volumes:
+      - miniodata:/data
+    # Not published to the internet — the app reaches MinIO over the compose network.
+    # To reach the MinIO console locally, add:  ports: ["127.0.0.1:9001:9001"]
+    healthcheck:
+      test: ["CMD-SHELL", "mc ready local || exit 1"]
+      interval: 10s
+      retries: 5
+    restart: unless-stopped
+  db:
+    image: postgres:16-alpine
+    env_file: .env
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      interval: 10s
+      retries: 5
+    restart: unless-stopped
+  # Audit/activity logs are persisted to the Postgres `audit_log` table (the source of truth) and
+  # surfaced to admins at /admin/logs — no external observability stack required. AuditService also
+  # emits a structured JSON log line to stdout for anyone who wants to ship it elsewhere.
+volumes:
+  pgdata:
+  miniodata:
